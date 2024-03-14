@@ -1,15 +1,13 @@
 import logging
+import sqlite3
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils import executor
-import sqlite3
 from datetime import datetime
-
-API_TOKEN = 'токен'
-CODE_PHRASE = 'тест'
+from config import API_TOKEN, CODE_PHRASE
 
 logging.basicConfig(level=logging.INFO)
 
