@@ -53,6 +53,7 @@ class ExitPoll(StatesGroup):
     last_10_years_vote = State()
     age = State()
     gender = State()
+    cancel = State()  
 
 @dp.message_handler(commands=['start'])
 async def cmd_start(message: types.Message):
@@ -118,6 +119,20 @@ async def close_shift(message: types.Message, state: FSMContext):
     await message.answer("Смена закрыта. Нажмите 'Открыть смену' для начала новой смены.", reply_markup=keyboard)
     await state.finish()
 
+@dp.message_handler(Text(equals='Отменить'), state=[ExitPoll.nadezhdin_vote, ExitPoll.registration_vote, ExitPoll.last_10_years_vote, ExitPoll.age, ExitPoll.gender])
+async def cancel_process(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+    await message.answer("Добавление записи отменено.")
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(types.KeyboardButton('Даванков'), types.KeyboardButton('Путин'))
+    keyboard.add(types.KeyboardButton('Слуцкий'), types.KeyboardButton('Харитонов'))
+    keyboard.add(types.KeyboardButton('Испортил бюллетень (не называть)'), types.KeyboardButton('Забрал бюллетень (не называть)'))
+    keyboard.add(types.KeyboardButton('Отказ от ответа'), types.KeyboardButton('Закрыть смену'))
+    await message.answer("Выберите, как человек проголосовал:", reply_markup=keyboard)
+    await ExitPoll.voting.set()
+
 @dp.message_handler(state=ExitPoll.district)
 async def process_district(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -144,7 +159,8 @@ async def process_vote(message: types.Message, state: FSMContext):
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(types.KeyboardButton('Да'), types.KeyboardButton('Возможно'))
     keyboard.add(types.KeyboardButton('Нет'), types.KeyboardButton('Не знаю/Отказ'))
-    keyboard.add(types.KeyboardButton('Пропустить все вопросы'))
+    keyboard.add(types.KeyboardButton('Отменить'), types.KeyboardButton('Пропустить все вопросы'))
+
     await message.answer("Вы бы проголосовали за Бориса Надеждина, если бы он был в бюллетене?", reply_markup=keyboard)
     await ExitPoll.nadezhdin_vote.set()
 
@@ -157,12 +173,13 @@ async def process_nadezhdin_vote(message: types.Message, state: FSMContext):
             data['nadezhdin_vote'] = message.text
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
         keyboard.add(types.KeyboardButton('Да'), types.KeyboardButton('Нет'))
-        keyboard.add(types.KeyboardButton('Отказ от ответа'), types.KeyboardButton('Пропустить все вопросы'))
+        keyboard.add(types.KeyboardButton('Отказ от ответа'))
+        keyboard.add(types.KeyboardButton('Отменить'), types.KeyboardButton('Пропустить все вопросы'))
         await message.answer("Вы голосовали по месту регистрации?", reply_markup=keyboard)
         await ExitPoll.registration_vote.set()
 
 @dp.message_handler(state=ExitPoll.registration_vote)
-async def process_registration_vote(message: types.Message, state: FSMContext):
+async def process_registration_vote(message: types.Message, state: FSMContext):    
     if message.text == 'Пропустить все вопросы':
         await process_gender(message, state)  # Перейти сразу к сохранению данных
     else:
@@ -170,7 +187,8 @@ async def process_registration_vote(message: types.Message, state: FSMContext):
             data['registration_vote'] = message.text
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
         keyboard.add(types.KeyboardButton('Голосовал и раньше'), types.KeyboardButton('Не голосовал, в этот раз решил принять участие'))
-        keyboard.add(types.KeyboardButton('Это мои первые выборы (для тех, кому 23 и меньше)'), types.KeyboardButton('Пропустить все вопросы'))
+        keyboard.add(types.KeyboardButton('Это мои первые выборы (для тех, кому 23 и меньше)'))
+        keyboard.add(types.KeyboardButton('Отменить'), types.KeyboardButton('Пропустить все вопросы'))
         await message.answer("Вы голосовали на выборах последние 10 лет?", reply_markup=keyboard)
         await ExitPoll.last_10_years_vote.set()
 
@@ -184,7 +202,8 @@ async def process_first_election(message: types.Message, state: FSMContext):
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
         keyboard.add(types.KeyboardButton('18-29'), types.KeyboardButton('30-44'))
         keyboard.add(types.KeyboardButton('45-59'), types.KeyboardButton('60+'))
-        keyboard.add(types.KeyboardButton('Отказ от ответа'), types.KeyboardButton('Пропустить все вопросы'))
+        keyboard.add(types.KeyboardButton('Отказ от ответа'))
+        keyboard.add(types.KeyboardButton('Отменить'), types.KeyboardButton('Пропустить все вопросы'))
         await message.answer("Ваш возраст?", reply_markup=keyboard)
         await ExitPoll.age.set()
 
@@ -197,6 +216,7 @@ async def process_age(message: types.Message, state: FSMContext):
             data['age'] = message.text
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
         keyboard.add(types.KeyboardButton('Мужской'), types.KeyboardButton('Женский'))
+        keyboard.add(types.KeyboardButton('Отменить'))
         keyboard.add(types.KeyboardButton('Пропустить все вопросы'))
         await message.answer("Ваш пол?", reply_markup=keyboard)
         await ExitPoll.gender.set()
